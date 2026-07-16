@@ -15,13 +15,13 @@ module Sessions
       end
 
       publish_status_update
-      Rails.logger.info("[N5/StartHandler] Session #{@session.id} activated")
+      Rails.logger("[N5/StartHandler] Session #{@session.id} activated")
       @session
     end
 
     private
 
-    def publish_status_update
+    def publish_status
       redis = ::Redis.new(url: ENV.fetch('REDIS_URL', 'redis://localhost:6379/1'))
       redis.publish("coverage:#{@session.id}", { type: 'session_status', status: @session.status, end_reason: nil }.to_json)
     rescue => e
