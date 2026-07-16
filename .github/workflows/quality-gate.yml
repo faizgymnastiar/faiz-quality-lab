@@ -63,7 +63,7 @@ jobs:
           working-directory: api
           bundler-cache: true
       - name: Setup database
-        run: bin/rails db:create db:schema:load
+        run: bundle exec rails db:create db:schema:load
       - name: Run RSpec (includes F1 / F4 regression specs)
         run: bundle exec rspec
 
