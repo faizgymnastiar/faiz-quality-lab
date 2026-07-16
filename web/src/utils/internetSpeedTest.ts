@@ -22,6 +22,20 @@ export const DEFAULT_THRESHOLDS: SpeedThresholds = {
     maxPingMs: 300,
 };
 
+async function fetchWithTimeout(url: string, options: RequestInit & { timeout?: number } = {}): Promise<Response> {
+    const { timeout = 3000, ...fetchOpts } = options;
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    try {
+        const response = await fetch(url, { ...fetchOpts, signal: controller.signal });
+        clearTimeout(id);
+        return response;
+    } catch (err) {
+        clearTimeout(id);
+        throw err;
+    }
+}
+
 const SPEED_TEST_PING_URL = import.meta.env.VITE_SPEED_TEST_PING_URL as string | undefined;
 const SPEED_TEST_UPLOAD_URL = import.meta.env.VITE_SPEED_TEST_UPLOAD_URL as string | undefined;
 
@@ -29,7 +43,7 @@ async function measurePing(): Promise<number> {
     if (SPEED_TEST_PING_URL) {
         try {
             const start = performance.now();
-            await fetch(SPEED_TEST_PING_URL, { cache: "no-cache" });
+            await fetchWithTimeout(SPEED_TEST_PING_URL, { cache: "no-cache", timeout: 2000 });
             return performance.now() - start;
         } catch {
             return 999;
@@ -43,7 +57,7 @@ async function measurePing(): Promise<number> {
     for (const url of testUrls) {
         try {
             const start = performance.now();
-            await fetch(url, { mode: "no-cors", cache: "no-cache" });
+            await fetchWithTimeout(url, { mode: "no-cors", cache: "no-cache", timeout: 2000 });
             return performance.now() - start;
         } catch {
             continue;
@@ -61,7 +75,7 @@ async function measureDownloadSpeed(): Promise<number> {
     for (const testFile of testFiles) {
         try {
             const start = performance.now();
-            const response = await fetch(testFile.url, { cache: "no-cache" });
+            const response = await fetchWithTimeout(testFile.url, { cache: "no-cache", timeout: 3000 });
             if (response.ok) {
                 await response.blob();
                 const seconds = (performance.now() - start) / 1000;
@@ -74,7 +88,7 @@ async function measureDownloadSpeed(): Promise<number> {
     // Rough fallback
     try {
         const start = performance.now();
-        await fetch("https://www.google.com/favicon.ico", { mode: "no-cors", cache: "no-cache" });
+        await fetchWithTimeout("https://www.google.com/favicon.ico", { mode: "no-cors", cache: "no-cache", timeout: 2000 });
         const duration = (performance.now() - start) / 1000;
         return duration < 1 ? 2 : duration < 2 ? 1 : 0.5;
     } catch {
@@ -83,7 +97,7 @@ async function measureDownloadSpeed(): Promise<number> {
 }
 
 async function measureUploadSpeed(): Promise<number> {
-    const uploadSizeMB = 0.5;
+    const uploadSizeMB = 0.2;
     const uploadData = new Blob([new ArrayBuffer(uploadSizeMB * 1024 * 1024)], {
         type: "application/octet-stream",
     });
@@ -95,14 +109,14 @@ async function measureUploadSpeed(): Promise<number> {
             const formData = new FormData();
             formData.append("test", uploadData);
             const start = performance.now();
-            await fetch(endpoint, { method: "POST", body: formData });
+            await fetchWithTimeout(endpoint, { method: "POST", body: formData, timeout: 3000 });
             const seconds = (performance.now() - start) / 1000;
             return uploadSizeMB / seconds;
         } catch {
             continue;
         }
     }
-    return 0.5; // conservative fallback
+    return 0.2; // conservative fallback
 }
 
 async function runMultipleTests<T>(testFn: () => Promise<T>, count = 3): Promise<T[]> {
