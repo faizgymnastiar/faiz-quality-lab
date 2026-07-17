@@ -234,10 +234,10 @@ until that token's natural expiry — there is no server-side revocation path.
 **Where:** `api/app/auth/authorize_api_request.rb#build_user_struct`
 
 **How found:** Code read; comment in the file itself confirms this is intentional design
-("Does NOT hit the database for user lookup — trusts the JWT claims"), inherited from `rakamin-api`.
+("Does NOT hit the database for user lookup — trusts the JWT claims")
 
 **Why P2, not higher:** this is a common, defensible trade-off for stateless JWT auth (and may well be
-intentional upstream design already accepted by the wider Rakamin platform this was extracted from), and
+intentional upstream design already accepted by the platform this was extracted from), and
 there's no evidence in this repo of an unusually long token TTL that would make it acutely dangerous. Flagging
 because there's no written spec here confirming the intended TTL or revocation story for *this* platform
 specifically — worth a one-line confirmation from whoever owns the shared auth layer rather than treating
