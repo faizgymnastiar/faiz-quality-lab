@@ -29,9 +29,10 @@ RSpec.describe Session, type: :model do
     end
 
     it "points at the web app's interview route, never at the API's own port" do
-      session = create(:session, token: "abc123token")
+      session = create(:session, invite_token: "abc123token")
 
       url = session.invite_url
+
 
       expect(url).to start_with("https://interview.example.com")
       expect(url).to include("/interview/abc123token")

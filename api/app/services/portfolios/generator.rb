@@ -150,12 +150,13 @@ module Portfolios
     def save_skills(portfolio, response)
       data = response.is_a?(Hash) ? response : JSON.parse(response)
 
-      # Destroy existing skills (idempotent regeneration)
-      portfolio.portfolio_skills.destroy_all
+      kept_skill_ids = []
 
       (data['configured_skills'] || []).each do |skill_data|
-        portfolio.portfolio_skills.create!(
-          skill_id:           skill_data['skill_id'],
+        portfolio_skill = portfolio.portfolio_skills.find_or_initialize_by(
+          skill_id: skill_data['skill_id']
+        )
+        portfolio_skill.assign_attributes(
           skill_label:        skill_data['skill_label'],
           is_discovered:      false,
           ai_level:           skill_data['level'].to_i.clamp(1, 5),
@@ -163,19 +164,28 @@ module Portfolios
           evidence:           Array(skill_data['evidence']).first(3),
           competency_summary: skill_data['competency_summary']
         )
+        portfolio_skill.save!
+        kept_skill_ids << portfolio_skill.id
       end
 
       (data['discovered_skills'] || []).each do |skill_data|
-        portfolio.portfolio_skills.create!(
-          skill_id:           nil,
-          skill_label:        skill_data['skill_label'],
+        portfolio_skill = portfolio.portfolio_skills.find_or_initialize_by(
+          skill_id: nil,
+          skill_label: skill_data['skill_label']
+        )
+        portfolio_skill.assign_attributes(
           is_discovered:      true,
           ai_level:           skill_data['level'].to_i.clamp(1, 5),
           ai_confidence:      skill_data['confidence'],
           evidence:           Array(skill_data['evidence']).first(3),
           competency_summary: skill_data['competency_summary']
         )
+        portfolio_skill.save!
+        kept_skill_ids << portfolio_skill.id
       end
+
+      portfolio.portfolio_skills.where.not(id: kept_skill_ids).destroy_all
     end
+
   end
 end
