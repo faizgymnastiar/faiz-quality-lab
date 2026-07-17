@@ -3,4 +3,3 @@ class DemoGreetingService
     "Hello, #{name}!"
   end
 end
-echo "# trigger rerun"
