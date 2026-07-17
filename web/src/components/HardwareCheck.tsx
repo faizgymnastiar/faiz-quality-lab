@@ -69,6 +69,7 @@ const HardwareCheck: React.FC<HardwareCheckProps> = ({ onStart }) => {
 
     const checkAudioPlayback = async (): Promise<boolean> => {
         try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
             const ctx = new AudioCtx();
             if (ctx.state === "suspended") await ctx.resume();
@@ -86,6 +87,7 @@ const HardwareCheck: React.FC<HardwareCheckProps> = ({ onStart }) => {
 
     const startAudioLevelMonitoring = (stream: MediaStream) => {
         try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
             const ctx = new AudioCtx();
             const source = ctx.createMediaStreamSource(stream);
@@ -102,9 +104,16 @@ const HardwareCheck: React.FC<HardwareCheckProps> = ({ onStart }) => {
         } catch { /* silent */ }
     };
 
-    // Step 1: OS & browser
-    useEffect(() => {
-        setProgress((p) => ({ ...p, osAndBrowser: ProctoringState.LOADING }));
+    const runChecks = () => {
+        setProgress({
+            osAndBrowser: ProctoringState.LOADING,
+            internet: ProctoringState.LOADING,
+            camera: REQUIRE_CAMERA ? ProctoringState.LOADING : ProctoringState.PASSED,
+            microphone: ProctoringState.LOADING,
+            audio: ProctoringState.WAITING,
+        });
+
+        // Step 1: OS & browser
         setTimeout(() => {
             getBrowserInfo();
             getOSInfo();
@@ -112,32 +121,19 @@ const HardwareCheck: React.FC<HardwareCheckProps> = ({ onStart }) => {
             setProgress((p) => ({
                 ...p,
                 osAndBrowser: ProctoringState.PASSED,
-                internet: ProctoringState.LOADING,
             }));
         }, 800);
-    }, []);
 
-    // Step 2: Internet
-    useEffect(() => {
-        if (progress.internet !== ProctoringState.LOADING) return;
+        // Step 2: Internet speed test
         testInternetSpeed(DEFAULT_THRESHOLDS).then((result) => {
             setInternetResult(result);
             setProgress((p) => ({
                 ...p,
                 internet: result.passed ? ProctoringState.PASSED : ProctoringState.ERROR,
-                ...(REQUIRE_CAMERA
-                    ? { camera: ProctoringState.LOADING }
-                    : { camera: ProctoringState.PASSED, microphone: ProctoringState.LOADING }),
             }));
         });
-    }, [progress.internet]);
 
-    // Step 3: Camera + microphone (or microphone-only when camera disabled)
-    useEffect(() => {
-        const cameraLoading = progress.camera === ProctoringState.LOADING;
-        const micLoading = !REQUIRE_CAMERA && progress.microphone === ProctoringState.LOADING;
-        if (!cameraLoading && !micLoading) return;
-
+        // Step 3: Camera + microphone (or microphone-only when camera disabled)
         const getStream = REQUIRE_CAMERA
             ? checkCamera()
             : navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => null);
@@ -160,7 +156,12 @@ const HardwareCheck: React.FC<HardwareCheckProps> = ({ onStart }) => {
                 }));
             }
         });
-    }, [progress.camera, progress.microphone]);
+    };
+
+    useEffect(() => {
+        runChecks();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Step 4: Audio output
     useEffect(() => {
@@ -177,13 +178,7 @@ const HardwareCheck: React.FC<HardwareCheckProps> = ({ onStart }) => {
         videoStream?.getTracks().forEach((t) => t.stop());
         setVideoStream(null);
         setInternetResult(null);
-        setProgress({
-            osAndBrowser: ProctoringState.LOADING,
-            internet: ProctoringState.WAITING,
-            camera: ProctoringState.WAITING,
-            audio: ProctoringState.WAITING,
-            microphone: ProctoringState.WAITING,
-        });
+        runChecks();
     };
 
     const thresholds = DEFAULT_THRESHOLDS;
