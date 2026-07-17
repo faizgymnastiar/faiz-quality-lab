@@ -52,8 +52,19 @@ jobs:
         ports: ["6379:6379"]
     env:
       RAILS_ENV: test
-      DATABASE_URL: postgres://postgres:postgres@localhost:5432/app_test
-      REDIS_URL: redis://localhost:6379/0
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_NAME: app_test
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      REDIS_URL: redis://localhost:6379/1
+      ALLOWED_ORIGINS: http://localhost:5173
+      APP_BASE_URL: http://localhost:3001
+      SECRET_KEY_BASE: dummy_ci_secret_key_base_not_used_for_real_auth
+      GEMINI_API_KEY: dummy_ci_key_not_a_real_credential
+      GEMINI_LIVE_MODEL: gemini-3.1-flash-live-preview
+      GEMINI_ANALYSIS_MODEL: gemini-2.0-flash-001
+      GEMINI_PRO_MODEL: gemini-2.5-pro
     defaults:
       run:
         working-directory: api
@@ -64,7 +75,7 @@ jobs:
           working-directory: api
           bundler-cache: true
       - name: Setup database
-        run: bin/rails db:create db:schema:load
+        run: bundle exec rails db:create db:schema:load
       - name: Run RSpec (includes F1 / F4 regression specs)
         run: bundle exec rspec
 
